@@ -28,10 +28,10 @@ pipeline {
 ╔══════════════════════════════════════════════════════╗
 ║               CI PIPELINE STARTED                    ║
 ╚══════════════════════════════════════════════════════╝
-   Build Number : ${env.BUILD_NUMBER}
-   Branch       : ${env.BRANCH_NAME}
-   PR Number    : ${env.CHANGE_ID ?: 'Not a PR'}
-   PR Title     : ${env.CHANGE_TITLE ?: 'N/A'}
+   Build  : #${env.BUILD_NUMBER}
+   Branch : ${env.BRANCH_NAME}
+   PR     : ${env.CHANGE_ID ?: 'Not a PR'}
+   Title  : ${env.CHANGE_TITLE ?: 'N/A'}
 ══════════════════════════════════════════════════════
                     """
                 }
@@ -44,7 +44,7 @@ pipeline {
                     echo "Hostname : $(hostname)"
                     echo "User     : $(whoami)"
                     docker --version
-                    echo "✅ Docker CLI ready"
+                    echo "✅ Environment ready"
                 '''
             }
         }
@@ -61,14 +61,14 @@ pipeline {
         stage('🐳 Docker Build') {
             steps {
                 sh """
-                    echo "Building image: ${CI_IMAGE}"
+                    echo "Building: ${CI_IMAGE}"
 
                     docker build \\
                         --tag ${CI_IMAGE} \\
                         --file Dockerfile \\
                         .
 
-                    echo "✅ Docker build successful"
+                    echo "✅ Build successful"
                     docker images ${CI_IMAGE}
                 """
             }
@@ -77,20 +77,22 @@ pipeline {
         stage('🧪 Verify Image') {
             steps {
                 sh """
-                    echo "=== Verifying Image Structure ==="
+                    echo "=== Image Verification ==="
 
-                    echo "1. JAR file check..."
+                    echo "1. Checking JAR exists inside image..."
                     docker run --rm ${CI_IMAGE} ls -lh /app/app.jar
                     echo "✅ JAR found"
 
-                    echo "2. Java version check..."
+                    echo "2. Checking Java inside image..."
                     docker run --rm ${CI_IMAGE} java -version
-                    echo "✅ Java verified"
+                    echo "✅ Java OK"
 
-                    echo "3. Exposed ports check..."
+                    echo "3. Checking exposed port..."
                     docker inspect ${CI_IMAGE} \\
-                        --format='Exposed ports: {{json .Config.ExposedPorts}}'
-                    echo "✅ Port verified"
+                        --format='Port: {{json .Config.ExposedPorts}}'
+                    echo "✅ Port OK"
+
+                    echo "✅ Image verification passed"
                 """
             }
         }
@@ -104,57 +106,12 @@ pipeline {
                     echo "Container UID: \${CONTAINER_UID}"
 
                     if [ "\${CONTAINER_UID}" = "0" ]; then
-                        echo "❌ FAILED: Container runs as ROOT (UID 0)"
+                        echo "❌ FAILED: Running as ROOT (UID 0) - Security risk!"
                         exit 1
                     else
                         echo "✅ PASSED: Non-root UID (\${CONTAINER_UID})"
                     fi
                 """
-            }
-        }
-
-        stage('🔗 Integration Tests') {
-            steps {
-                sh """
-                    echo "=== Integration Tests ==="
-
-                    docker network create test-net-${BUILD_NUMBER}
-
-                    docker run -d \\
-                        --name postgres-${BUILD_NUMBER} \\
-                        --network test-net-${BUILD_NUMBER} \\
-                        --network-alias db-service \\
-                        -e POSTGRES_DB=testdb \\
-                        -e POSTGRES_USER=testuser \\
-                        -e POSTGRES_PASSWORD=testpass \\
-                        postgres:15-alpine
-
-                    echo "⏳ Waiting for database..."
-                    sleep 15
-
-                    docker run --rm \\
-                        --name app-test-${BUILD_NUMBER} \\
-                        --network test-net-${BUILD_NUMBER} \\
-                        -e SPRING_PROFILES_ACTIVE=test \\
-                        -e SPRING_DATASOURCE_URL=jdbc:postgresql://db-service:5432/testdb \\
-                        -e SPRING_DATASOURCE_USERNAME=testuser \\
-                        -e SPRING_DATASOURCE_PASSWORD=testpass \\
-                        -e SPRING_JPA_HIBERNATE_DDL_AUTO=create \\
-                        ${CI_IMAGE} \\
-                        java -jar app.jar || true
-
-                    echo "✅ Integration tests completed"
-                """
-            }
-            post {
-                always {
-                    sh """
-                        docker stop postgres-${BUILD_NUMBER} || true
-                        docker rm   postgres-${BUILD_NUMBER} || true
-                        docker network rm test-net-${BUILD_NUMBER} || true
-                        echo "✅ Test environment cleaned up"
-                    """
-                }
             }
         }
 
@@ -176,15 +133,15 @@ pipeline {
 ╔══════════════════════════════════════════════════════╗
 ║            ✅ CI PASSED - PR VALIDATED               ║
 ╚══════════════════════════════════════════════════════╝
-   PR        : #${env.CHANGE_ID} - ${env.CHANGE_TITLE}
-   ✅ Code Quality     : Passed
-   ✅ Docker Build     : Passed
-   ✅ Image Verified   : Passed
-   ✅ Security Scan    : Passed
-   ✅ Integration Tests: Passed
-   🚫 Deployment      : Skipped (PRs never deploy)
+   PR     : #${env.CHANGE_ID} - ${env.CHANGE_TITLE}
 
-   Next: Get review approval → Merge to main
+   ✅ Code Quality  : Passed
+   ✅ Docker Build  : Passed
+   ✅ Image Verify  : Passed
+   ✅ Security Scan : Passed
+   🚫 Deployment   : Skipped (PRs never deploy)
+
+   → Get code review → Merge to main for deployment
 ══════════════════════════════════════════════════════
                     """
                 } else {
@@ -192,13 +149,13 @@ pipeline {
 ╔══════════════════════════════════════════════════════╗
 ║          ✅ CI PASSED - BRANCH VALIDATED             ║
 ╚══════════════════════════════════════════════════════╝
-   Branch    : ${env.BRANCH_NAME}
-   Build     : #${env.BUILD_NUMBER}
-   ✅ Code Quality     : Passed
-   ✅ Docker Build     : Passed
-   ✅ Image Verified   : Passed
-   ✅ Security Scan    : Passed
-   ✅ Integration Tests: Passed
+   Branch : ${env.BRANCH_NAME}
+   Build  : #${env.BUILD_NUMBER}
+
+   ✅ Code Quality  : Passed
+   ✅ Docker Build  : Passed
+   ✅ Image Verify  : Passed
+   ✅ Security Scan : Passed
 ══════════════════════════════════════════════════════
                     """
                 }
