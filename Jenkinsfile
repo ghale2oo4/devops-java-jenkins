@@ -117,23 +117,22 @@ pipeline {
         // ════════════════════════════════════════════════
         stage('🔧 Verify Environment') {
             steps {
-                /*
-                 * We are running on jenkins/agent (cloud agent).
-                 * This agent has Java and Git pre-installed.
-                 * We verify Docker is accessible via the socket
-                 * mounted in docker-compose.yml
-                 */
                 sh '''
                     echo "=== Agent Information ==="
-                    echo "Hostname: $(hostname)"
-                    echo "User: $(whoami)"
+                    echo "Hostname : $(hostname)"
+                    echo "User     : $(whoami)"
                     echo ""
                     echo "=== Tools Available ==="
-                    java -version
-                    git --version
                     docker --version
                     echo ""
-                    echo "✅ All required tools available"
+                    echo "✅ Docker CLI ready!"
+                    echo ""
+                    echo "NOTE: Java & Maven are NOT needed here."
+                    echo "Your Dockerfile handles them internally:"
+                    echo "  Stage 1 (eclipse-temurin:25-jdk-alpine)"
+                    echo "  → Maven compiles Java inside Docker build"
+                    echo "  Stage 2 (eclipse-temurin:25-jre-alpine)"  
+                    echo "  → Only JAR copied to runtime image"
                 '''
             }
         }
