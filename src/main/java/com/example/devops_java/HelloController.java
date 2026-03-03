@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class HelloController {
     @GetMapping("/")
     public String index() {
-        return "DevOps Lab: Java Backend is officially RUNNING!";
+        return "DevOps Lab: Java Backend is officially RUNNING! changing some string to check it running";
     }
 }
