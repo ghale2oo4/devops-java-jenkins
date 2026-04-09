@@ -56,12 +56,11 @@ pipeline {
                       reuseNode true
                   }
               }
-            steps {
-                sh '''
-                    echo "Running code quality checks..."
-                    echo "✅ Code quality passed"
-                '''
-            }
+              steps {
+                  withSonarQubeEnv('SonarQube') {
+                      sh './mvnw -B compile sonar:sonar'
+                  }
+              }
         }
         stage('✅ Quality Gate') {
               steps {
